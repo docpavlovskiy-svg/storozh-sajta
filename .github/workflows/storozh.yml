@@ -1,0 +1,41 @@
+name: storozh
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+    inputs:
+      deistvie:
+        description: "prohod | pokazat | na-zaglushku | na-server"
+        default: "pokazat"
+permissions:
+  contents: write
+concurrency:
+  group: storozh
+  cancel-in-progress: false
+jobs:
+  storozh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Состояние с ветки sostoyanie
+        run: |
+          git fetch origin sostoyanie --depth=1 && git show origin/sostoyanie:state.json > state.json || echo '{}' > state.json
+          cp state.json state.before.json
+      - name: Проход
+        env:
+          SWEB_LOGIN: ${{ secrets.SWEB_LOGIN }}
+          SWEB_PASSWORD: ${{ secrets.SWEB_PASSWORD }}
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHAT: ${{ secrets.TG_CHAT }}
+          STATE: state.json
+        run: python3 storozh.py ${{ github.event.inputs.deistvie || 'prohod' }}
+      - name: Сохранить состояние, если изменилось
+        if: always()
+        run: |
+          cmp -s state.json state.before.json && exit 0
+          mkdir /tmp/s && cp state.json /tmp/s/
+          git config user.name storozh && git config user.email storozh@users.noreply.github.com
+          git checkout --orphan sostoyanie-tmp && git rm -rq --cached . && cp /tmp/s/state.json .
+          git add state.json && git commit -qm "состояние $(date -u +%FT%TZ)"
+          git push -fq origin HEAD:sostoyanie
