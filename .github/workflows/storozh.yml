@@ -1,35 +1,56 @@
 name: storozh
 on:
+  # Основной ритм - будильник cron-job.org раз в 2 минуты (запуск workflow_dispatch по ключу,
+  # см. README). Расписание - страховка: само по себе GitHub будит 4-6 раз в сутки.
   schedule:
     - cron: "*/10 * * * *"
   workflow_dispatch:
     inputs:
       deistvie:
-        description: "prohod | pokazat | na-zaglushku | na-server"
-        default: "pokazat"
+        description: "prohod | budilnik (так зовёт cron-job.org) | pokazat | na-zaglushku | na-server"
+        default: "prohod"
+      kod:
+        description: "код для na-zaglushku и na-server (~/.negipertonia/storozh-ruchnoj-kod)"
+        default: ""
 permissions:
   contents: write
+  actions: read
 concurrency:
   group: storozh
+  # false: не убить прогон посреди смены адреса сайта.
   cancel-in-progress: false
 jobs:
   storozh:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
+      # ref: main - прогон, ждавший в очереди, берёт состояние уже после коммита предыдущего.
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - name: Состояние
         run: |
           mkdir -p sostoyanie && [ -s sostoyanie/state.json ] || echo '{}' > sostoyanie/state.json
           cp sostoyanie/state.json /tmp/state.before.json
+      # Входы запуска - только через env: подстановка выражения прямо в run исполнилась бы как код
+      # рядом с паролем SpaceWeb. Поле kod сюда не передаю - env шага GitHub печатает в публичном
+      # журнале прогона; storozh.py читает его из файла события.
       - name: Проход
         env:
           SWEB_LOGIN: ${{ secrets.SWEB_LOGIN }}
           SWEB_PASSWORD: ${{ secrets.SWEB_PASSWORD }}
           TG_TOKEN: ${{ secrets.TG_TOKEN }}
           TG_CHAT: ${{ secrets.TG_CHAT }}
+          RUCHNOJ_KOD: ${{ secrets.RUCHNOJ_KOD }}
+          GH_TOKEN: ${{ github.token }}
+          # Ящик inbox@ (на заглушке он дан клиентам): пока сайт на заглушке, сторож пересказывает
+          # письма Ивану. Нет секрета - почту не смотрит.
+          SWEB_INBOX_PASSWORD: ${{ secrets.SWEB_INBOX_PASSWORD }}
+          # Адрес сервера сайта - переменная репозитория (Variables), не секрет. Пустая - 2.31.62.117.
+          SERVER_IP: ${{ vars.SERVER_IP }}
           STATE: sostoyanie/state.json
-        run: python3 storozh.py ${{ github.event.inputs.deistvie || 'prohod' }}
+          DEISTVIE: ${{ inputs.deistvie || 'prohod' }}
+        run: python3 storozh.py "$DEISTVIE"
       # Состояние живёт в main: ежедневная отметка самопроверки = коммит раз в день, иначе GitHub
       # выключает расписание публичного репозитория после 60 дней без изменений.
       - name: Сохранить состояние, если изменилось
