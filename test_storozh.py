@@ -497,8 +497,9 @@ def scenarij_a(put, health, imya):
     s3 = st.soobshch()
     proverit(not st.editmain, "ни одного editMain (адрес сайта не тронут): %d" % len(st.editmain))
     proverit(st.tokeny == 0, "ни одного входа в SpaceWeb: %d" % st.tokeny)
-    proverit(len(s3) == 1 and 60 <= s3[0][0] <= 62 and s3[0][1].startswith("🟠 Кабинет"),
-             "Ивану ровно одно сообщение на 60-й минуте: %s" % [(int(m), t[:40]) for m, t in s3])
+    # ночью на 60-й переключает запасной сервер (rabota) - сторож говорит на 75-й, если тот не смог
+    proverit(len(s3) == 1 and 75 <= s3[0][0] <= 77 and s3[0][1].startswith("🟠 Кабинет"),
+             "Ивану ровно одно сообщение на 75-й минуте: %s" % [(int(m), t[:40]) for m, t in s3])
     proverit(st.izmenenij <= 3, "состояние меняется редко (коммитов за 3 ч): %d" % st.izmenenij)
     st.server = postoyanno("200", "200")
     n = len(st.soobshcheniya)
@@ -537,8 +538,8 @@ def scenarij_c(put):
     proverit(s and 15 <= s[0][0] <= 17 and s[0][1].startswith("🟠 Сайт не отвечает"),
              "«🟠» на 15-й минуте: %s" % [(int(m), t[:30]) for m, t in s[:1]])
     zagl = [e for e in st.editmain if e[2] == ZAGL_IP]
-    proverit(len(zagl) == 2 and {e[1] for e in zagl} == {1, 2} and all(60 <= e[0] <= 62 for e in zagl),
-             "на 60-й минуте обе записи -> 77.222.62.121: %s" % [(int(e[0]), e[1], e[2]) for e in st.editmain])
+    proverit(len(zagl) == 2 and {e[1] for e in zagl} == {1, 2} and all(90 <= e[0] <= 94 for e in zagl),
+             "на 90-й минуте (после запасного сервера) обе записи -> 77.222.62.121: %s" % [(int(e[0]), e[1], e[2]) for e in st.editmain])
     proverit(len(st.editmain) == 2, "больше правок нет до конца сценария (100 мин)")
     proverit(sum(1 for m, t in s if ZAGLUSHKA_TEXT in t) == 1, "одно сообщение «Включил заглушку»")
     proverit(any("check-host.net/check-http?host=https://doctorpavlovskii.ru/&" in a for a in st.adresa)
@@ -678,7 +679,7 @@ def scenarij_j(put):
                sostoyanie={"samoproverka": "2026-10-19"})
     kody = st.gnat(150)
     ne = [(m, t) for m, t in st.soobshcheniya if "Включить заглушку не вышло" in t]
-    proverit(len(ne) == 1 and 60 <= ne[0][0] <= 62, "одно «включить заглушку не вышло»: %s" % [int(m) for m, t in ne])
+    proverit(len(ne) == 1 and 90 <= ne[0][0] <= 94, "одно «включить заглушку не вышло»: %s" % [int(m) for m, t in ne])
     proverit(set(kody) == {0} and not any(ZAGLUSHKA_TEXT in t for m, t in st.soobshcheniya),
              "коды 0, ложного «Включил заглушку» нет")
     proverit(not st.mimo, "без вызовов мимо")
